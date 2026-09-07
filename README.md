@@ -34,7 +34,7 @@ Out of all lab assignments, two of them will be randomly selected for grading, e
 If you do not follow the e-mail subject format in at least one of your submissions, you will lose half a point (0.5/20).
 
 ## End-of-session mini-exams
-At the end of weeks 3, 4, 5, 6 there will be mini-exams of 20-25 minutes, giving 4.5/20 points each. Types of exercises that might appear on these mini-exams are:
+At the end of weeks 4, 5, 6, 7 there will be mini-exams of 20-25 minutes, giving 4.5/20 points each. Types of exercises that might appear on these mini-exams are:
 
 **Debugging:** Given a complete code with multiple bugs, the goal is to identify each bug (without correcting them), say what the problem is in a single sentence, and point out the corresponding line(s) in the code.
 
