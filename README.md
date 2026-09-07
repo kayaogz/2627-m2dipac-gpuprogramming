@@ -1,4 +1,4 @@
-# [M2 DIPAC] GPU programming (2.5 ECTS)
+# [M2 DIPAC] GPU programming (3 ECTS)
 
 This course offers a practical introduction to GPU programming, focusing on the principles and techniques behind parallel computation using the CUDA programming model. Students will explore how modern GPUs execute thousands of threads concurrently, how memory hierarchies affect performance, and how to design efficient kernels for tasks such as matrix computations, scientific computing, and machine-learning-related operations. Through a blend of lectures, hands-on examples, and targeted programming assignments, the course builds core skills in parallel algorithm design and performance optimization, preparing students to create high-performance GPU-accelerated applications and use existing optimized GPU libraries.
 
