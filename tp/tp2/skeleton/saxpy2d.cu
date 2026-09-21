@@ -25,9 +25,10 @@
 //           CHECK_INDEX();
 //       -- CHECK_INDEX() must follow EVERY assignment to Y[idx]: in the trace
 //       run it records which block/thread touched the element, and the
-//       driver checks that this is the thread the mapping prescribes;
-//    2. write its launch configuration in config();
-//    3. in the comment block, answer for both layouts: what do the 32 threads
+//       driver checks that this is the thread the mapping prescribes.
+//       The launch configuration (grid and block) of every kernel is given in
+//       config(), after the kernels;
+//    2. in the comment block, answer for both layouts: what do the 32 threads
 //       of a warp touch in memory at one instruction, and is the access
 //       COALESCED (the 32 addresses fall into 4 sectors of 32 bytes) or NOT
 //       (up to 32 sectors)? Write your verdict ("yes"/"no") in the table
@@ -544,7 +545,7 @@ __global__ void saxpy_2d_d_alt_kxk_colmajor(int n, int K, float a, const float *
 //  Kernel table: names, launch configurations, expected mappings
 // =============================================================================
 
-// Launch configuration of kernel `kernel` for a matrix of size n.
+// Launch configuration of kernel `kernel` for a matrix of size n (given: grid and block of every kernel).
 struct Config { dim3 grid; dim3 block; };
 
 Config config(int kernel, int n)
@@ -552,31 +553,20 @@ Config config(int kernel, int n)
   const int nbLinear = (n + BLOCK_SIZE - 1) / BLOCK_SIZE;   // pieces per row/column
   const int nbTiles = (n + SIDE - 1) / SIDE;                 // tiles per row/column
   Config c;
-  c.block = dim3(BLOCK_SIZE);                                // 1D block, unless said otherwise
+  c.block = dim3(BLOCK_SIZE);                                // 1D block of BLOCK_SIZE threads, unless said otherwise
   switch (kernel) {
     case 0:  c.grid = dim3((n * n + BLOCK_SIZE - 1) / BLOCK_SIZE); break;
-    case 1:  c.grid = dim3(nbLinear); break;
-    // TODO: one case per kernel: the grid, and the block when it is not a 1D block of BLOCK_SIZE threads
-    //       (tile kernels: SIDE * SIDE threads, as a 1D block for kernels 7-10, as a SIDE x SIDE 2D block for 11-18)
-    case 2:  c.grid = dim3(1); break;
-    case 3:  c.grid = dim3(1); break;
-    case 4:  c.grid = dim3(1); break;
-    case 5:  c.grid = dim3(1); break;
-    case 6:  c.grid = dim3(1); break;
-    case 7:  c.grid = dim3(1); break;
-    case 8:  c.grid = dim3(1); break;
-    case 9:  c.grid = dim3(1); break;
-    case 10: c.grid = dim3(1); break;
-    case 11: c.grid = dim3(1); break;
-    case 12: c.grid = dim3(1); break;
-    case 13: c.grid = dim3(1); break;
-    case 14: c.grid = dim3(1); break;
-    case 15: c.grid = dim3(1); break;
-    case 16: c.grid = dim3(1); break;
-    case 17: c.grid = dim3(1); break;
-    case 18: c.grid = dim3(1); break;
+    case 1:  case 2: c.grid = dim3(nbLinear); break;
+    case 3:  case 4: c.grid = dim3(n * nbLinear); break;
+    case 5:  c.grid = dim3(n, nbLinear); break;
+    case 6:  c.grid = dim3(nbLinear, n); break;
+    case 7:  case 8: case 9: case 10: c.grid = dim3(nbTiles * nbTiles); c.block = dim3(SIDE * SIDE); break;
+    case 11: case 12: case 13: case 14: c.grid = dim3(nbTiles, nbTiles); c.block = dim3(SIDE, SIDE); break;
+    default: {                                                 // 15-18: K x K per thread
+      int nbBig = (n + SIDE * KK - 1) / (SIDE * KK);
+      c.grid = dim3(nbBig, nbBig); c.block = dim3(SIDE, SIDE); break;
+    }
   }
-  (void)nbLinear; (void)nbTiles;
   return c;
 }
 
