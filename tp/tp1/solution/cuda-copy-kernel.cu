@@ -63,6 +63,9 @@ int main(int argc, char **argv) {
   for (int i = 0; i < N; i++) { B[i] = 0.0f; }
   cudaMemcpy(dB, B, N * sizeof(float), cudaMemcpyHostToDevice);
 
+  // Copy A into dA and B into dB
+  cudaMemcpy(dA, A, N * sizeof(float), cudaMemcpyHostToDevice);
+
   // Copy dA into dB with the kernel cudaCopyByBlocksThreads
   int blockSize = 1024;
   cudaCopyByBlocksThreads<<<(N + blockSize - 1) / blockSize, blockSize>>>(dB, dA, N);
