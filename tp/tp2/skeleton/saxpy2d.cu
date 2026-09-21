@@ -68,8 +68,8 @@
 //  Problem sizes and launch parameters
 // ----------------------------------------------------------------------------
 #define N 256                     // matrix size (small: the mapping does not depend on N, and the code must run on godbolt)
-#define BLOCK_SIZE 1024           // threads per block, everywhere
-#define SIDE 32                   // tile side: SIDE * SIDE == BLOCK_SIZE
+#define BLOCK_SIZE 128            // threads per block of the 1D-block kernels (N / BLOCK_SIZE = 2 blocks per row)
+#define SIDE 32                   // tile side: the tile kernels use SIDE * SIDE = 1024 threads per block
 #define WARP 32                   // threads per warp
 #define KK 4                      // kernels 15-18: each thread computes a KK x KK patch
 
@@ -556,7 +556,8 @@ Config config(int kernel, int n)
   switch (kernel) {
     case 0:  c.grid = dim3((n * n + BLOCK_SIZE - 1) / BLOCK_SIZE); break;
     case 1:  c.grid = dim3(nbLinear); break;
-    // TODO: one case per kernel (grid, and block when it is not 1D of BLOCK_SIZE threads)
+    // TODO: one case per kernel: the grid, and the block when it is not a 1D block of BLOCK_SIZE threads
+    //       (tile kernels: SIDE * SIDE threads, as a 1D block for kernels 7-10, as a SIDE x SIDE 2D block for 11-18)
     case 2:  c.grid = dim3(1); break;
     case 3:  c.grid = dim3(1); break;
     case 4:  c.grid = dim3(1); break;
@@ -812,7 +813,7 @@ int main(void)
   CUDA_CHECK(cudaMalloc(&d.ty, n2 * sizeof(int)));
   CUDA_CHECK(cudaMalloc(&d.count, n2 * sizeof(int)));
 
-  printf("== saxpy on a %d x %d matrix, %d threads per block: result, mapping and sectors per warp\n\n", n, n, BLOCK_SIZE);
+  printf("== saxpy on a %d x %d matrix (%d-thread 1D blocks, %d x %d tiles): result, mapping and sectors per warp\n\n", n, n, BLOCK_SIZE, SIDE, SIDE);
   printf("%-44s %-12s %-8s %-8s %-9s %-14s %s\n", "kernel", "layout", "result", "covered", "mapping", "sectors/warp", "claimed");
   for (int kernel = 0; kernel < numKernels; kernel++) {
     for (int layout = ROW_MAJOR; layout <= COL_MAJOR; layout++) {
