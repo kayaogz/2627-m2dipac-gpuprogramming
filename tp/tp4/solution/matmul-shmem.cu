@@ -42,6 +42,9 @@
 //
 //  Build:  nvcc -O2 -arch=native matmul-shmem.cu -o matmul-shmem -lcublas
 //  Run:    ./matmul-shmem      (the matrix size n is set in main())
+//  The program calls cuBLAS: it MUST be linked with -lcublas. On godbolt,
+//  the compiler options of the pane that runs it must read -O2 -lcublas;
+//  without -lcublas the program does not link.
 // =============================================================================
 #include <cstdio>
 #include <cstdlib>
