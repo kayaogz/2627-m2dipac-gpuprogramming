@@ -12,7 +12,7 @@
 //  every kernel must work whatever N (round the grid up, guard the threads
 //  that fall outside the matrix).
 //
-//  EXERCISES -- one kernel each, kernel 1 is given as a worked example:
+//  EXERCISES -- one kernel each:
 //    1. one thread per element of C, blocks of one thread, 2D grid
 //    2. 1D blocks along a row of C: a block computes blockDim.x consecutive
 //       elements of one row, one element per thread

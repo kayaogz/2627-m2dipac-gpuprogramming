@@ -165,10 +165,11 @@ __global__ void matmul_1d_column(int n, const float *A, const float *B, float *C
 //  4. 2D blocks, warps horizontal: a blockDim.x x blockDim.y tile of C,
 //     threadIdx.x along the row
 // =============================================================================
-//  i = blockIdx.x * blockDim.y + threadIdx.y,  j = blockIdx.y * blockDim.x +
-//  threadIdx.x: threadIdx.x is on the COLUMN index. Grid: ceil(N / blockDim.y)
-//  x ceil(N / blockDim.x), guard on i and j. With blockDim.x = 32, a warp is
-//  32 consecutive elements of one row of C.
+//  i = blockIdx.x * BSXY + threadIdx.y,  j = blockIdx.y * BSXY + threadIdx.x:
+//  threadIdx.x is on the COLUMN index (the blocks are BSXY x BSXY, so the
+//  tile side is BSXY in both directions). Grid: ceil(N/BSXY) x ceil(N/BSXY),
+//  guard on i and j. With BSXY = 32, a warp is 32 consecutive elements of
+//  one row of C.
 //
 //  At step k, a warp (32 consecutive threadIdx.x, same threadIdx.y) has the
 //  same i and 32 consecutive j -- exactly the pattern of kernel 2:
@@ -180,8 +181,8 @@ __global__ void matmul_1d_column(int n, const float *A, const float *B, float *C
 // =============================================================================
 __global__ void matmul_2d_horizontal(int n, const float *A, const float *B, float *C)
 {
-  int i = blockIdx.x * blockDim.y + threadIdx.y;
-  int j = blockIdx.y * blockDim.x + threadIdx.x;
+  int i = blockIdx.x * BSXY + threadIdx.y;
+  int j = blockIdx.y * BSXY + threadIdx.x;
   if (i < n && j < n) {
     float sum = 0.0f;
     for (int k = 0; k < n; k++) { sum += A[i * n + k] * B[k + j * n]; }
@@ -192,10 +193,10 @@ __global__ void matmul_2d_horizontal(int n, const float *A, const float *B, floa
 // =============================================================================
 //  5. 2D blocks, warps vertical: the same tile, threadIdx.x down the column
 // =============================================================================
-//  i = blockIdx.x * blockDim.x + threadIdx.x,  j = blockIdx.y * blockDim.y +
-//  threadIdx.y: threadIdx.x is on the ROW index. Grid: ceil(N / blockDim.x)
-//  x ceil(N / blockDim.y), guard on i and j. With blockDim.x = 32, a warp is
-//  32 consecutive elements of one column of C.
+//  i = blockIdx.x * BSXY + threadIdx.x,  j = blockIdx.y * BSXY + threadIdx.y:
+//  threadIdx.x is on the ROW index. Grid: ceil(N/BSXY) x ceil(N/BSXY), guard
+//  on i and j. With BSXY = 32, a warp is 32 consecutive elements of one
+//  column of C.
 //
 //  At step k, a warp has 32 consecutive i and the same j -- the pattern of
 //  kernel 3:
@@ -212,8 +213,8 @@ __global__ void matmul_2d_horizontal(int n, const float *A, const float *B, floa
 // =============================================================================
 __global__ void matmul_2d_vertical(int n, const float *A, const float *B, float *C)
 {
-  int i = blockIdx.x * blockDim.x + threadIdx.x;
-  int j = blockIdx.y * blockDim.y + threadIdx.y;
+  int i = blockIdx.x * BSXY + threadIdx.x;
+  int j = blockIdx.y * BSXY + threadIdx.y;
   if (i < n && j < n) {
     float sum = 0.0f;
     for (int k = 0; k < n; k++) { sum += A[i * n + k] * B[k + j * n]; }

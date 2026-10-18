@@ -12,18 +12,12 @@
 //  every kernel must work whatever N (round the grid up, guard the threads
 //  that fall outside the matrix).
 //
-//  EXERCISES -- one kernel each; kernel 1 is given as a worked example, with
-//  its comment block and its launch in main():
-//    1. one thread per element of C, blocks of one thread, 2D grid
-//    2. 1D blocks along a row of C: a block computes blockDim.x consecutive
-//       elements of one row, one element per thread
-//    3. 1D blocks along a column of C: a block computes blockDim.x
-//       consecutive elements of one column
-//    4. 2D blocks, warps horizontal: a block computes a blockDim.x x
-//       blockDim.y tile of C, one element per thread, threadIdx.x running
-//       along the row (a warp = consecutive columns)
-//    5. 2D blocks, warps vertical: the same tile, threadIdx.x running down
-//       the column (a warp = consecutive rows)
+//  EXERCISES -- one kernel each:
+//    1. one thread per block
+//    2. 1D blocks along a row of C
+//    3. 1D blocks along a column of C
+//    4. 2D blocks, warps horizontal
+//    5. 2D blocks, warps vertical
 //    6. cuBLAS: the same product with cublasSgemm; then set n in main()
 //       to 128, 256, ..., 4096 in turn, rerun, and compare your kernels
 //       with cuBLAS
@@ -33,9 +27,9 @@
 //  write of C, what do the 32 threads of a warp touch at one instruction,
 //  and is the access coalesced or not?
 //  In main(), set the grid and block dimensions of each kernel (the launch
-//  is written; as given, kernels 2-5 run with 1 block of 1 thread, so the
-//  program compiles and runs from the start and prints WRONG until they
-//  are written).
+//  is written; as given, every kernel runs with 1 block of 1 thread, so the
+//  program compiles and runs from the start and prints WRONG until the
+//  kernels are written).
 //
 //  The program checks every result against a CPU reference and prints the
 //  time and the performance in GFLOP/s.
@@ -88,14 +82,11 @@ inline float aval(int i, int k) { return (float)((i + 2 * k) % 7); }
 inline float bval(int k, int j) { return (float)((3 * k + j) % 5); }
 
 // =============================================================================
-//  1. One thread per element of C, blocks of one thread, 2D grid of N x N
+//  1. One thread per block
 // =============================================================================
-//  Thread (i, j) = (blockIdx.x, blockIdx.y) computes the dot product of row i
-//  of A and column j of B: n multiply-adds, 2n loads from global memory.
-//  The grid has exactly N x N blocks: no guard needed.
-//  Given as a worked example. (One thread per block: a warp has a single
-//  active thread, so the coalescing analysis of the other kernels does not
-//  apply here -- every access is one float of one sector.)
+//  A 2D grid of N x N blocks of a single thread, block (i, j) computing the
+//  element C(i, j) from row i of A and column j of B. With one thread per
+//  block the question of coalescing does not arise: no analysis for this one.
 // =============================================================================
 __global__ void matmul_blocks(int n, const float *A, const float *B, float *C)
 {
@@ -103,11 +94,12 @@ __global__ void matmul_blocks(int n, const float *A, const float *B, float *C)
 }
 
 // =============================================================================
-//  2. 1D blocks along a row of C: blockDim.x consecutive elements of one row
+//  2. 1D blocks along a row of C
 // =============================================================================
-//  blockIdx.x = the row i; blockIdx.y = which piece of the row;
-//  j = blockIdx.y * blockDim.x + threadIdx.x. Grid: N x ceil(N / blockDim.x),
-//  guard on j.
+//  Each block has BS_1D = 256 threads and computes 256 consecutive elements
+//  of one row of C, one element per thread; the grid covers every row and
+//  every piece of a row. The last block of a row sticks out of the matrix
+//  when N is not a multiple of 256: its threads must be guarded.
 //
 //  ANALYSIS (to write here): for each global memory access of this kernel --
 //  the reads of A and of B at one step k, the write of C -- say what the 32
@@ -120,11 +112,10 @@ __global__ void matmul_1d_row(int n, const float *A, const float *B, float *C)
 }
 
 // =============================================================================
-//  3. 1D blocks along a column of C: blockDim.x consecutive elements of one column
+//  3. 1D blocks along a column of C
 // =============================================================================
-//  blockIdx.x = the column j; blockIdx.y = which piece of the column;
-//  i = blockIdx.y * blockDim.x + threadIdx.x. Grid: N x ceil(N / blockDim.x),
-//  guard on i.
+//  The same blocks of 256 threads, each computing 256 consecutive elements of
+//  one column of C; the grid covers every column and every piece of a column.
 //
 //  ANALYSIS (to write here): for each global memory access of this kernel --
 //  the reads of A and of B at one step k, the write of C -- say what the 32
@@ -138,13 +129,13 @@ __global__ void matmul_1d_column(int n, const float *A, const float *B, float *C
 }
 
 // =============================================================================
-//  4. 2D blocks, warps horizontal: a blockDim.x x blockDim.y tile of C,
-//     threadIdx.x along the row
+//  4. 2D blocks, warps horizontal
 // =============================================================================
-//  j = blockIdx.x * blockDim.x + threadIdx.x,  i = blockIdx.y * blockDim.y +
-//  threadIdx.y: threadIdx.x runs along the row of C, so with blockDim.x = 32
-//  a warp is 32 consecutive elements of one row. Grid: ceil(N / blockDim.x) x
-//  ceil(N / blockDim.y), guard on i and j.
+//  Each block is BS_2D x BS_2D = 32 x 32 threads and computes a 32 x 32 tile
+//  of C, one element per thread, with threadIdx.x running along the row of
+//  C: a warp is one row of the tile. The grid covers the matrix with tiles;
+//  the tiles of the last row and of the last column stick out when N is not
+//  a multiple of 32.
 //
 //  ANALYSIS (to write here): for each global memory access of this kernel --
 //  the reads of A and of B at one step k, the write of C -- say what the 32
@@ -158,12 +149,10 @@ __global__ void matmul_2d_horizontal(int n, const float *A, const float *B, floa
 }
 
 // =============================================================================
-//  5. 2D blocks, warps vertical: the same tile, threadIdx.x down the column
+//  5. 2D blocks, warps vertical
 // =============================================================================
-//  i = blockIdx.x * blockDim.x + threadIdx.x,  j = blockIdx.y * blockDim.y +
-//  threadIdx.y: threadIdx.x runs down the column of C, so with blockDim.x = 32
-//  a warp is 32 consecutive elements of one column. Grid: ceil(N / blockDim.x)
-//  x ceil(N / blockDim.y), guard on i and j.
+//  The same 32 x 32 tile of C per block, with threadIdx.x running down the
+//  column of C: a warp is one column of the tile.
 //
 //  ANALYSIS (to write here): for each global memory access of this kernel --
 //  the reads of A and of B at one step k, the write of C -- say what the 32
@@ -299,7 +288,8 @@ int main(void)
   // is not timed; the clock is read around the second one.
 
   // ---- 1. One thread per element, blocks of one thread --------------------
-  dim3 grid1(n, n), block1(1);
+  // TODO: grid and block of kernel 1 (as given: 1 block of 1 thread)
+  dim3 grid1(1), block1(1);
   matmul_blocks<<<grid1, block1>>>(n, dA, dB, dC);   // warm-up
   CUDA_CHECK_KERNEL();
   t0 = now();
